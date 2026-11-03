@@ -19,7 +19,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -57,6 +56,7 @@ class RedisLuaReservationStrategyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void shouldSuccessfullyReserveAndPublishToKafkaWhenLuaReturnsOne() {
         when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any(), any()))
                 .thenReturn("1");
@@ -77,6 +77,7 @@ class RedisLuaReservationStrategyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void shouldThrowSoldOutExceptionWhenLuaReturnsZero() {
         when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any(), any()))
                 .thenReturn("0");
@@ -90,6 +91,7 @@ class RedisLuaReservationStrategyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void shouldThrowAlreadyReservedExceptionWhenLuaReturnsMinusOne() {
         when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any(), any()))
                 .thenReturn("-1");
@@ -103,6 +105,7 @@ class RedisLuaReservationStrategyTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void shouldReturnExistingReservationWhenIdempotencyHit() {
         UUID existingReservationId = UUID.randomUUID();
         when(redisTemplate.execute(any(RedisScript.class), anyList(), any(), any(), any()))

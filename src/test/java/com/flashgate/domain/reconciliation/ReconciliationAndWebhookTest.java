@@ -57,8 +57,9 @@ class ReconciliationAndWebhookTest {
     private Campaign testCampaign;
 
     @BeforeEach
+    @SuppressWarnings("unchecked")
     void setUp() {
-        org.springframework.data.redis.core.HashOperations hashOps = mock(org.springframework.data.redis.core.HashOperations.class);
+        org.springframework.data.redis.core.HashOperations<String, Object, Object> hashOps = mock(org.springframework.data.redis.core.HashOperations.class);
         when(redisTemplate.opsForHash()).thenReturn(hashOps);
         when(hashOps.entries(any())).thenReturn(java.util.Collections.emptyMap());
 
@@ -77,6 +78,7 @@ class ReconciliationAndWebhookTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     void shouldReclaimExpiredReservationsAndReleaseRedisStock() {
         Reservation res = new Reservation(
                 UUID.randomUUID(),
@@ -99,6 +101,12 @@ class ReconciliationAndWebhookTest {
 
         // Verify release_ticket.lua was invoked with user_id
         verify(redisTemplate).execute(any(DefaultRedisScript.class), anyList(), eq(res.getUserId().toString()));
+    }
+
+    @Test
+    void shouldInvokePendingSyncReconciler() {
+        assertDoesNotThrow(() -> pendingSyncReconciler.reconcileOrphanedReservations());
+        assertDoesNotThrow(() -> pendingSyncReconciler.rollbackOrphanedReservation(testCampaign.getId(), UUID.randomUUID(), UUID.randomUUID()));
     }
 
     @Test

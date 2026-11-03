@@ -28,7 +28,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -96,5 +95,9 @@ class FlashGateE2EChaosTest {
 
         Reservation confirmedRes = reservationRepository.findById(resResponse.reservationId()).orElseThrow();
         assertEquals(ReservationStatus.CONFIRMED, confirmedRes.getStatus());
+
+        // 4. Expiry scheduler verification
+        int reclaimed = expiryScheduler.reclaimExpiredReservations();
+        assertEquals(0, reclaimed);
     }
 }

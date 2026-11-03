@@ -89,4 +89,15 @@ public class PendingSyncReconciler {
             }
         }
     }
+
+    public void rollbackOrphanedReservation(UUID campaignId, UUID reservationId, UUID userId) {
+        String pendingSyncKey = "campaign:" + campaignId + ":pending_sync";
+        List<String> keys = List.of(
+                "campaign:" + campaignId + ":stock",
+                "campaign:" + campaignId + ":users"
+        );
+        redisTemplate.execute(releaseTicketScript, keys, userId.toString());
+        redisTemplate.opsForHash().delete(pendingSyncKey, reservationId.toString());
+        log.info("Rolled back orphaned reservation {} and restored Redis inventory", reservationId);
+    }
 }
