@@ -1,0 +1,77 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "title": "FlashGate - Reservation Request Rate by Strategy & Result",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (strategy, result) (rate(flashgate_reservations_requests_total[5s]))",
+          "legendFormat": "{{strategy}} - {{result}}"
+        }
+      ]
+    },
+    {
+      "title": "Reservation Latency (p50, p95, p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{uri=~\"/api/v1/campaigns/.*/reserve\"}[5s])) by (le))",
+          "legendFormat": "p99 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{uri=~\"/api/v1/campaigns/.*/reserve\"}[5s])) by (le))",
+          "legendFormat": "p95 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{uri=~\"/api/v1/campaigns/.*/reserve\"}[5s])) by (le))",
+          "legendFormat": "p50 Latency"
+        }
+      ]
+    },
+    {
+      "title": "HikariCP Active vs Idle Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "hikaricp_connections_active",
+          "legendFormat": "Active Connections"
+        },
+        {
+          "expr": "hikaricp_connections_idle",
+          "legendFormat": "Idle Connections"
+        }
+      ]
+    },
+    {
+      "title": "Kafka Consumer Lag",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "kafka_consumergroup_lag{topic=\"ticket-reserved-events\"}",
+          "legendFormat": "Consumer Lag"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["flashgate", "high-concurrency"],
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "FlashGate Flash Sale Observability",
+  "uid": "flashgate-core-dashboard",
+  "version": 1
+}

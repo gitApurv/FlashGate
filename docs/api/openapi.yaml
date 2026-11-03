@@ -1,0 +1,370 @@
+openapi: 3.1.0
+info:
+  title: FlashGate API
+  description: High-Concurrency Flash Sale & Ticketing Engine REST API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local Development Server
+
+paths:
+  /campaigns:
+    post:
+      summary: Create Flash Sale Campaign
+      description: Platform Admin creates a new campaign specifying inventory, pricing, and active window.
+      operationId: createCampaign
+      tags:
+        - Admin Campaigns
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+      responses:
+        '201':
+          description: Campaign created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignResponse'
+        '400':
+          description: Validation error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /campaigns/{campaignId}/warmup:
+    post:
+      summary: Pre-Sale Redis Cache Warmup
+      description: Preloads campaign metadata into local Caffeine cache and sets available stock in Redis.
+      operationId: warmupCampaign
+      tags:
+        - Admin Campaigns
+      parameters:
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Warmup completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WarmupResponse'
+        '404':
+          description: Campaign not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /campaigns/{campaignId}/reserve:
+    post:
+      summary: Reserve Ticket
+      description: High-concurrency ticket reservation gatekeeper supporting multiple concurrency control modes.
+      operationId: reserveTicket
+      tags:
+        - Ticket Reservations
+      parameters:
+        - name: campaignId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: X-User-Id
+          in: header
+          required: true
+          description: Authenticated buyer UUID
+          schema:
+            type: string
+            format: uuid
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: Unique client-generated transaction idempotency token
+          schema:
+            type: string
+            maxLength: 64
+        - name: X-Concurrency-Mode
+          in: header
+          required: false
+          description: Concurrency control strategy to execute (defaults to REDIS_KAFKA_PIPELINE)
+          schema:
+            type: string
+            enum:
+              - NAIVE
+              - OPTIMISTIC_LOCK
+              - PESSIMISTIC_LOCK
+              - REDIS_KAFKA_PIPELINE
+            default: REDIS_KAFKA_PIPELINE
+      responses:
+        '202':
+          description: Reservation accepted and queued for confirmation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '403':
+          description: Sale window is not currently open (before start or after end)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: User has already reserved or purchased an item in this campaign
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '410':
+          description: Inventory is completely sold out
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /reservations/{reservationId}:
+    get:
+      summary: Check Reservation Status
+      description: Polling endpoint for clients to check the persistence and confirmation status of their reservation.
+      operationId: getReservationStatus
+      tags:
+        - Ticket Reservations
+      parameters:
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Reservation details and state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationStatusResponse'
+        '404':
+          description: Reservation not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /webhooks/payments:
+    post:
+      summary: Ingest Payment Webhook
+      description: Ingests simulated payment events (PAYMENT_SUCCEEDED, PAYMENT_FAILED) verified via HMAC-SHA256 signature.
+      operationId: processPaymentWebhook
+      tags:
+        - Payment Webhooks
+      parameters:
+        - name: X-Webhook-Signature
+          in: header
+          required: true
+          description: HMAC-SHA256 signature of request payload
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentWebhookRequest'
+      responses:
+        '200':
+          description: Payment webhook processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentWebhookResponse'
+        '401':
+          description: Invalid or missing webhook HMAC signature
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Reservation has expired; payment cannot be confirmed (refund required)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+  schemas:
+    CreateCampaignRequest:
+      type: object
+      required:
+        - title
+        - totalStock
+        - priceCents
+        - saleStartsAt
+        - saleEndsAt
+      properties:
+        title:
+          type: string
+          example: "Coldplay World Tour 2026 - Flash Sale"
+        totalStock:
+          type: integer
+          minimum: 1
+          example: 500
+        priceCents:
+          type: integer
+          minimum: 0
+          example: 9900
+        saleStartsAt:
+          type: string
+          format: date-time
+          example: "2026-11-03T18:00:00Z"
+        saleEndsAt:
+          type: string
+          format: date-time
+          example: "2026-11-03T19:00:00Z"
+
+    CampaignResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        totalStock:
+          type: integer
+        availableStock:
+          type: integer
+        priceCents:
+          type: integer
+        saleStartsAt:
+          type: string
+          format: date-time
+        saleEndsAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    WarmupResponse:
+      type: object
+      properties:
+        campaignId:
+          type: string
+          format: uuid
+        warmedStock:
+          type: integer
+        saleStartsAt:
+          type: string
+          format: date-time
+        saleEndsAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          example: "CACHE_WARMED"
+
+    ReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+          example: "0192f3a4-8c1e-7000-8000-4a9b1c2d3e4f"
+        campaignId:
+          type: string
+          format: uuid
+          example: "8f9d2a10-4b3c-4e1a-9f0c-123456789abc"
+        userId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum: [QUEUED_FOR_CONFIRMATION, PENDING_PAYMENT, CONFIRMED]
+          example: "QUEUED_FOR_CONFIRMATION"
+        expiresAt:
+          type: string
+          format: date-time
+          example: "2026-11-03T18:10:00Z"
+        statusCheckUrl:
+          type: string
+          example: "/api/v1/reservations/0192f3a4-8c1e-7000-8000-4a9b1c2d3e4f"
+
+    ReservationStatusResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        campaignId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING_PAYMENT, CONFIRMED, EXPIRED, CANCELLED]
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PaymentWebhookRequest:
+      type: object
+      required:
+        - reservationId
+        - paymentId
+        - eventType
+        - amountCents
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+        eventType:
+          type: string
+          enum: [PAYMENT_SUCCEEDED, PAYMENT_FAILED]
+        amountCents:
+          type: integer
+
+    PaymentWebhookResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [CONFIRMED, CANCELLED, REFUND_REQUIRED]
+        message:
+          type: string
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri

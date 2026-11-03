@@ -1,0 +1,38 @@
+spring:
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: jdbc:h2:mem:flashgate_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+  flyway:
+    enabled: false
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      auto-offset-reset: earliest
+
+flashgate:
+  security:
+    webhook-secret: "test-webhook-secret-key-32chars"
+  concurrency:
+    default-mode: REDIS_KAFKA_PIPELINE
+  reconciliation:
+    expiry-cron: "-"
+    sync-audit-cron: "-"
