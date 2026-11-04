@@ -66,6 +66,8 @@ FlashGate implements the **Strategy Pattern**, allowing real-time switching of c
 | **`v3: PESSIMISTIC_LOCK`** | `SELECT ... FOR UPDATE` | **0** | 1,400 ms | 3,800 ms | Serialized DB execution. Saturates HikariCP pool (20 connections) causing connection timeouts and queuing. |
 | **`v4: REDIS_KAFKA_PIPELINE`** | Redis Lua + Kafka Buffer | **0** | **< 8 ms** | **< 18 ms** | Atomic single-core gatekeeping rejects 99% of traffic in <1ms. Database connection pool is 100% protected. |
 
+> 📊 **Empirical Benchmark Report & Charts:** See [docs/benchmarks/BENCHMARK_REPORT.md](docs/benchmarks/BENCHMARK_REPORT.md) for full telemetry data, root-cause analyses, and comparative charts.
+
 ---
 
 ## 4. Key Architectural Decisions (ADRs)
