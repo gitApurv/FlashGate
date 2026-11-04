@@ -60,14 +60,14 @@ Standard e-commerce architectures rely on synchronous relational transactions (`
 
 ## 3. Concurrency Control Strategies & Benchmark Matrix
 
-FlashGate implements the **Strategy Pattern**, allowing real-time switching of concurrency mechanisms via the `X-Concurrency-Mode` HTTP request header for benchmarking:
+FlashGate implements the **Strategy Pattern**, allowing real-time switching of concurrency mechanisms via the `X-Concurrency-Mode` HTTP request header. Below are the **empirical measurements** captured under identical spike test conditions (250 concurrent requests, 25 parallel worker threads, 50 available stock):
 
-| Strategy Mode | Concurrency Control | Overselling Count | p95 Latency | p99 Latency | Failure Mode & Behavioral Characteristics |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`v1: NAIVE`** | JPA Read-Modify-Write | **High (+880)** | 120 ms | 450 ms | Lost updates due to uncoordinated concurrent transactions. Oversells immediately under load. |
-| **`v2: OPTIMISTIC_LOCK`** | JPA `@Version` + Retry | **0** | 850 ms | 2,100 ms | Heavy CPU churn and transaction aborts (>90% retry exhaustion) as threads collide on the same version counter. |
-| **`v3: PESSIMISTIC_LOCK`** | `SELECT ... FOR UPDATE` | **0** | 1,400 ms | 3,800 ms | Serialized DB execution. Saturates HikariCP pool (20 connections) causing connection timeouts and queuing. |
-| **`v4: REDIS_KAFKA_PIPELINE`** | Redis Lua + Kafka Buffer | **0** | **< 8 ms** | **< 18 ms** | Atomic single-core gatekeeping rejects 99% of traffic in <1ms. Database connection pool is 100% protected. |
+| Strategy Mode | Concurrency Control | Duration | Throughput (RPS) | p50 Latency | p95 Latency | p99 Latency | Oversold Count | Failure Mode & Behavioral Characteristics |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **`v1: NAIVE`** | JPA Read-Modify-Write | 2.19s | 114.1 RPS | 136.1 ms | 652.8 ms | 974.1 ms | **+18 (+36%)** | **Data Corruption:** Lost updates allowed 68 reservations for 50 tickets. |
+| **`v2: OPTIMISTIC_LOCK`** | JPA `@Version` + Retries | 3.97s | 62.9 RPS | 400.7 ms | 556.1 ms | 579.7 ms | **0** | **High Abort Rate:** 201/250 requests (80.4%) failed due to retry exhaustion. |
+| **`v3: PESSIMISTIC_LOCK`** | DB `SELECT ... FOR UPDATE` | 1.63s | 153.0 RPS | 137.6 ms | 498.9 ms | 590.0 ms | **0** | **Database Queuing:** Serialized row lock holds DB connections in HikariCP. |
+| **`v4: REDIS_KAFKA_PIPELINE`** | Redis Lua + Kafka Buffer | **1.03s** | **243.3 RPS** | **71.0 ms** | **371.7 ms** | **402.4 ms** | **0** | **Winner:** 2.1x faster than Naive, 3.9x faster than Optimistic, zero DB spike load. |
 
 > 📊 **Empirical Benchmark Report & Telemetry Visuals:** See [docs/benchmarks/BENCHMARK_REPORT.md](docs/benchmarks/BENCHMARK_REPORT.md) for full telemetry datasets, root-cause analyses, and terminal cards.
 
