@@ -3,6 +3,7 @@
 > **High-Concurrency Flash Sale & Ticketing Engine**  
 > *Built with Java 21 Virtual Threads, Spring Boot 3.4+, Redis 7.2 Lua Scripts, Apache Kafka KRaft, and PostgreSQL 16.*
 
+[![CI](https://github.com/gitApurv/FlashGate/actions/workflows/ci.yml/badge.svg)](https://github.com/gitApurv/FlashGate/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21%20LTS-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.3-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue.svg)](https://www.postgresql.org/)
@@ -25,6 +26,8 @@ Standard e-commerce architectures rely on synchronous relational transactions (`
 ---
 
 ## 2. Architecture & Data Flow
+
+![FlashGate Distributed System Architecture](docs/architecture/flashgate-architecture.png)
 
 ```text
 [Buyer Client]
@@ -66,7 +69,9 @@ FlashGate implements the **Strategy Pattern**, allowing real-time switching of c
 | **`v3: PESSIMISTIC_LOCK`** | `SELECT ... FOR UPDATE` | **0** | 1,400 ms | 3,800 ms | Serialized DB execution. Saturates HikariCP pool (20 connections) causing connection timeouts and queuing. |
 | **`v4: REDIS_KAFKA_PIPELINE`** | Redis Lua + Kafka Buffer | **0** | **< 8 ms** | **< 18 ms** | Atomic single-core gatekeeping rejects 99% of traffic in <1ms. Database connection pool is 100% protected. |
 
-> 📊 **Empirical Benchmark Report & Charts:** See [docs/benchmarks/BENCHMARK_REPORT.md](docs/benchmarks/BENCHMARK_REPORT.md) for full telemetry data, root-cause analyses, and comparative charts.
+> 📊 **Empirical Benchmark Report & Telemetry Visuals:** See [docs/benchmarks/BENCHMARK_REPORT.md](docs/benchmarks/BENCHMARK_REPORT.md) for full telemetry datasets, root-cause analyses, and terminal cards.
+
+![FlashGate Concurrency Benchmark Telemetry](docs/benchmarks/benchmark_charts.png)
 
 ---
 
@@ -115,6 +120,13 @@ Complete OpenAPI 3.1 specification available at [docs/api/openapi.yaml](docs/api
   }
   ```
 
+### Postman Collection
+A pre-configured Postman suite is included in the [`postman/`](postman/) directory:
+- [FlashGate Collection (`postman/FlashGate.postman_collection.json`)](postman/FlashGate.postman_collection.json)
+- [FlashGate Environment (`postman/FlashGate.postman_environment.json`)](postman/FlashGate.postman_environment.json)
+
+Import both into Postman to immediately execute and verify all endpoints.
+
 ---
 
 ## 6. Quickstart & Local Setup
@@ -141,7 +153,17 @@ mvn clean package -DskipTests
 java -jar target/flashgate-1.0.0.jar
 ```
 
-### 3. Run Load Benchmark with k6
+### 3. Automated 20-Second Live Spike Demo
+Run the turnkey end-to-end spike test script with a single command:
+```bash
+# Windows PowerShell
+./scripts/demo.ps1
+
+# Linux / macOS / WSL
+./scripts/demo.sh
+```
+
+### 4. Run Load Benchmark with k6
 ```bash
 # Test Redis Lua + Kafka Pipeline (Target)
 k6 run -e CONCURRENCY_MODE=REDIS_KAFKA_PIPELINE k6/flash_sale_spike.js

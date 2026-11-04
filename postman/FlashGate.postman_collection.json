@@ -1,0 +1,154 @@
+{
+  "info": {
+    "_postman_id": "c1f7a4e0-32b5-4927-916c-e09876543210",
+    "name": "FlashGate API Collection",
+    "description": "High-Concurrency Flash Sale & Ticketing Engine Postman Collection. Test campaign creation, pre-sale warmup, concurrency strategies, and HMAC payment webhooks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Create Flash Sale Campaign",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 201) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('campaignId', jsonData.id);",
+              "    console.log('Campaign ID stored: ' + jsonData.id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"Coldplay Music of the Spheres 2026\",\n  \"totalStock\": 500,\n  \"priceCents\": 15000,\n  \"saleStartsAt\": \"2026-01-01T00:00:00Z\",\n  \"saleEndsAt\": \"2026-12-31T23:59:59Z\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/campaigns",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "campaigns"]
+        }
+      }
+    },
+    {
+      "name": "2. Pre-Sale Cache & Redis Warmup",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/warmup",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "campaigns", "{{campaignId}}", "warmup"]
+        }
+      }
+    },
+    {
+      "name": "3. Reserve Ticket (v4: Redis Lua + Kafka)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.environment.set('userId', pm.variables.replaceIn('{{$guid}}'));",
+              "pm.environment.set('idempotencyKey', 'idemp-' + pm.variables.replaceIn('{{$randomUUID}}'));"
+            ],
+            "type": "text/javascript"
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 202 || pm.response.code === 200) {",
+              "    var jsonData = pm.response.json();",
+              "    pm.environment.set('reservationId', jsonData.reservationId);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{userId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+          { "key": "X-Concurrency-Mode", "value": "REDIS_KAFKA_PIPELINE" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/reserve",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "campaigns", "{{campaignId}}", "reserve"]
+        }
+      }
+    },
+    {
+      "name": "4. Reserve Ticket (v3: Pessimistic Lock)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              "pm.environment.set('userId', pm.variables.replaceIn('{{$guid}}'));",
+              "pm.environment.set('idempotencyKey', 'idemp-' + pm.variables.replaceIn('{{$randomUUID}}'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{userId}}" },
+          { "key": "Idempotency-Key", "value": "{{idempotencyKey}}" },
+          { "key": "X-Concurrency-Mode", "value": "PESSIMISTIC_LOCK" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/campaigns/{{campaignId}}/reserve",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "campaigns", "{{campaignId}}", "reserve"]
+        }
+      }
+    },
+    {
+      "name": "5. Check Reservation Status",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reservations/{{reservationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reservations", "{{reservationId}}"]
+        }
+      }
+    },
+    {
+      "name": "6. Payment Webhook Ingestion",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "X-Webhook-Signature", "value": "{{computedWebhookSignature}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reservationId\": \"{{reservationId}}\",\n  \"paymentId\": \"pay_test_987654\",\n  \"eventType\": \"PAYMENT_SUCCEEDED\",\n  \"amountCents\": 15000\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/webhooks/payments",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "webhooks", "payments"]
+        }
+      }
+    }
+  ]
+}
