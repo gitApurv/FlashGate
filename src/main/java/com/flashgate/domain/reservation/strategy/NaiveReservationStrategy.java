@@ -60,9 +60,8 @@ public class NaiveReservationStrategy implements ReservationStrategy {
             throw new SoldOutException("Campaign is sold out");
         }
 
-        // 5. Decrement stock (vulnerable to lost updates under concurrency)
-        campaign.setAvailableStock(campaign.getAvailableStock() - 1);
-        campaignRepository.save(campaign);
+        // 5. Decrement stock (vulnerable to race conditions and lost updates without version checks)
+        campaignRepository.decrementStockNaive(campaign.getId());
 
         // 6. Create reservation
         UUID reservationId = UUID.randomUUID();

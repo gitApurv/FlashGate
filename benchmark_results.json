@@ -1,0 +1,102 @@
+[
+  {
+    "strategy": "NAIVE",
+    "campaign_id": "cf1ba784-cf1f-4b76-8e72-a43289f1e510",
+    "total_requests": 250,
+    "bench_duration_s": 2.19,
+    "throughput_rps": 114.1,
+    "status_distribution": {
+      "200": 68,
+      "410": 182
+    },
+    "latency_ms": {
+      "min": 33.59,
+      "p50": 136.1,
+      "p90": 457.4,
+      "p95": 652.76,
+      "p99": 974.08,
+      "max": 1409.69
+    },
+    "db_state": {
+      "total_stock": 50,
+      "available_stock": 0,
+      "reservation_count": 68,
+      "oversold_count": 18
+    }
+  },
+  {
+    "strategy": "OPTIMISTIC_LOCK",
+    "campaign_id": "b31493e7-5db9-4873-8a7f-a55b86291ad8",
+    "total_requests": 250,
+    "bench_duration_s": 3.97,
+    "throughput_rps": 62.9,
+    "status_distribution": {
+      "200": 49,
+      "409": 201
+    },
+    "latency_ms": {
+      "min": 25.11,
+      "p50": 400.72,
+      "p90": 539.98,
+      "p95": 556.12,
+      "p99": 579.71,
+      "max": 609.0
+    },
+    "db_state": {
+      "total_stock": 50,
+      "available_stock": 1,
+      "reservation_count": 49,
+      "oversold_count": 0
+    }
+  },
+  {
+    "strategy": "PESSIMISTIC_LOCK",
+    "campaign_id": "068a899b-6b41-4f45-ba22-45b6a1b74a36",
+    "total_requests": 250,
+    "bench_duration_s": 1.63,
+    "throughput_rps": 153.0,
+    "status_distribution": {
+      "200": 50,
+      "410": 200
+    },
+    "latency_ms": {
+      "min": 22.97,
+      "p50": 137.62,
+      "p90": 242.67,
+      "p95": 498.91,
+      "p99": 590.03,
+      "max": 618.4
+    },
+    "db_state": {
+      "total_stock": 50,
+      "available_stock": 0,
+      "reservation_count": 50,
+      "oversold_count": 0
+    }
+  },
+  {
+    "strategy": "REDIS_KAFKA_PIPELINE",
+    "campaign_id": "e40f6fa6-0567-40ae-badf-24926179ef43",
+    "total_requests": 250,
+    "bench_duration_s": 1.03,
+    "throughput_rps": 243.3,
+    "status_distribution": {
+      "202": 50,
+      "410": 200
+    },
+    "latency_ms": {
+      "min": 28.76,
+      "p50": 71.0,
+      "p90": 354.83,
+      "p95": 371.67,
+      "p99": 402.44,
+      "max": 406.58
+    },
+    "db_state": {
+      "total_stock": 50,
+      "available_stock": 50,
+      "reservation_count": 50,
+      "oversold_count": 0
+    }
+  }
+]

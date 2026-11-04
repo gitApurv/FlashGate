@@ -64,7 +64,7 @@ spring:
       properties:
         spring.json.trusted.packages: "com.flashgate.*"
     listener:
-      ack-mode: batch
+      ack-mode: manual_immediate
       type: batch
 
 flashgate:

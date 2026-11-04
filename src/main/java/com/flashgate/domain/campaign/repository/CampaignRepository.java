@@ -17,4 +17,8 @@ public interface CampaignRepository extends JpaRepository<Campaign, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Campaign c WHERE c.id = :id")
     Optional<Campaign> findCampaignForUpdate(@Param("id") UUID id);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query(value = "UPDATE campaigns SET available_stock = GREATEST(0, available_stock - 1) WHERE id = :id", nativeQuery = true)
+    int decrementStockNaive(@Param("id") UUID id);
 }
